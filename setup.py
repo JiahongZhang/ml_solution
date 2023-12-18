@@ -23,7 +23,7 @@ setuptools.setup(
     description="A mechine learning pipeline lib.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/test/test",
+    url="https://github.com/JiahongZhang/ml_solution",
     packages=setuptools.find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",

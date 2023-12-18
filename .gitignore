@@ -4,3 +4,5 @@ dist/
 build/
 ml_solution.egg-info/
 __pycache__
+/upload_to_pypi.sh
+
