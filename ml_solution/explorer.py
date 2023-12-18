@@ -54,7 +54,7 @@ def series_count(
         df_draw = append_single_row_dict(df_draw, other_row)
 
     fig = plt.figure(dpi=300)
-    palette_color = sns.color_palette()
+    palette_color = sns.color_palette("muted")
     plt.pie(df_draw['count'], labels=df_draw[name], \
             colors=palette_color, autopct='%.0f%%') 
 
