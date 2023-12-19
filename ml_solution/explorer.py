@@ -2,8 +2,8 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.pyplot as plt
-plt.rcParams["font.sans-serif"] = ["SimHei"] #设置字体
-plt.rcParams["axes.unicode_minus"] = False #该语句解决图像中的“-”负号的乱码问题
+plt.rcParams["font.sans-serif"] = ["SimHei"] # 设置字体
+plt.rcParams["axes.unicode_minus"] = False # 该语句解决图像中的“-”负号的乱码问题
 
 
 
@@ -55,10 +55,12 @@ def series_count(
 
     fig = plt.figure(dpi=300)
     palette_color = sns.color_palette("muted")
+    plt.title(name) 
     plt.pie(df_draw['count'], labels=df_draw[name], \
             colors=palette_color, autopct='%.0f%%') 
 
     df = append_single_row_dict(df, na_row)
+    df.rename(columns={name: 'keys'}, inplace=True)
     if len(df)<=not_show_table_rows:
         plt.table(
             cellText=df.values,
