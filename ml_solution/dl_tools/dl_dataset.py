@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import Dataset
 
 
@@ -8,28 +9,40 @@ def tokenizer_concat(main_tokenizer, sub_tokenizer):
 
 
 class JsonDataset(Dataset):
-    def __init__(self, json, data_processor=None):
+    def __init__(self, json, postprocessor=None):
+        self.postprocessor = postprocessor
         self.data, self.indexs = [], []
-        self.json = json
-        for index in self.json.keys():
+        for index in json.keys():
             self.indexs.append(index)
-            self.data.append(self.json[index])
+            self.data.append(json[index])
         
-        self.data_processor = data_processor
-        if hasattr(self.data_processor, 'preprocess'):
-            self.data = [self.data_processor.preprocess(item) \
-                         for item in self.data]
-
     
     def __getitem__(self, idx):
         item = self.data[idx]
-        if hasattr(self.data_processor, 'postprocess'):
-            item = self.data_processor.postprocess(item)
+        if self.postprocessor is not None:
+            item = self.postprocessor.postprocess(item)
         return item
 
     
     def __len__(self):
         return len(self.data)
-    
 
+
+class TensorDictCollateFunc:
+    def __init__(self, sp_keys=None, sp_keys_funcs=None):
+        self.sp_keys = sp_keys
+        self.sp_keys_funcs = sp_keys_funcs
+
+    def collate_fn(self, batch):
+        if isinstance(batch[0], (list, tuple)):
+            transpose = zip(*batch)
+            return [self.collate_fn(samples) for samples in transpose]
+        keys = batch[0].keys()
+        stacked_batch = {}
+        for key in keys:
+            tensor_list = [torch.as_tensor(item[key]) for item in batch]
+            stacked_batch[key] = torch.stack(tensor_list) if key not in self.sp_keys \
+                                    else self.sp_keys_funcs[key](tensor_list)
+
+        return stacked_batch
 

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import XLMRobertaTokenizer
 from torchscale.model.BEiT3 import BEiT3
-from torchscale.architecture.config import EncoderConfig
+import cv2
 
 from ml_solution import config
 from . import beit3_utils
@@ -13,6 +13,9 @@ beit3_config = {
     'beit3_src_dir': beit3_src_dir, 
     'tokenizer_path': f'{beit3_src_dir}/beit3.spm'
 }
+
+
+
 
 
 
@@ -37,36 +40,6 @@ class Beit3Basic(nn.Module):
 
 
 
-
-class Beit3Classifier(nn.Module):
-    def __init__(self, classes_num=2, pretrain=False, classifier_embed=False):
-        super().__init__()
-        self.classifier_embed = classifier_embed
-        beit3_base = Beit3Basic(pretrain)
-        self.beit3 = beit3_base.beit3
-        embed_dim = 768
-        classifier_hidden_dim = 2048
-        self.classifier = nn.Sequential(
-            nn.Linear(embed_dim, classifier_hidden_dim),
-            nn.Linear(classifier_hidden_dim, classifier_hidden_dim),
-            nn.Linear(classifier_hidden_dim, classes_num)
-            )
-
-
-    def forward(self, x):
-        outputs = self.beit3(**x)
-        x = outputs['encoder_out'][:, [0, 197], :].mean(axis=1)
-        classifier_embed = None
-        for i, layer in enumerate(self.classifier):
-            x = layer(x)
-            if self.classifier_embed and i==0:
-                classifier_embed = x
-        
-        return {
-            'logits': x,
-            'token_embeds': outputs['encoder_out'],
-            'classifier_embed': classifier_embed
-            }
 
 
 

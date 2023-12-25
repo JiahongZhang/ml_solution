@@ -1,4 +1,8 @@
-from . import dl_dataset
+from . import (
+    dl_dataset, 
+    lego, 
+    visual_aug
+    )
 
 
 

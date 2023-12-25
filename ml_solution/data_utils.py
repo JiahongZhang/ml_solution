@@ -1,11 +1,21 @@
-import pandas as pd
 import json
+from PIL import Image
+import pandas as pd
 
 
-def load_json(json_path):
+def json_load(json_path):
     with open(json_path) as f:
         j = json.load(f)
     return j
+
+
+def json_manipulate_keys(item, ref_keys, keep=False):
+    keys = list(item.keys())
+    for key in keys:
+        exclude_flag = key not in ref_keys if keep else key in ref_keys
+        if exclude_flag:
+            del item[key]
+    return item
 
 
 def df_sample(
@@ -32,3 +42,14 @@ def df_sample(
 
     return sample1.reset_index(drop=drop_index), sample2.reset_index(drop=drop_index)
 
+
+def img_pil_loader(path: str) -> Image.Image:
+    # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
+    with open(path, 'rb') as f:
+        img = Image.open(f)
+        return img.convert('RGB')
+
+
+def img_permute(img, redo=False):
+    img = img.transpose(1, 2, 0) if redo else img.transpose(2, 0, 1)
+    return img
