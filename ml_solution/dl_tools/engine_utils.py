@@ -1,0 +1,117 @@
+from typing import Any
+import numpy as np
+from sklearn.metrics import confusion_matrix
+
+
+class ConfusionMetrics():
+    def __init__(self, num_classes=2, metrics_list=['accurancy'], eps=0.001):
+        self.num_classes = num_classes
+        self.compute_class = 1 if num_classes==2 else num_classes
+        # conf_matrix[i, j]: true label is i, but predicted as j
+        self.conf_matrix = np.zeros((num_classes, num_classes))
+        self.sample_num = 0
+        self.metrics_list = metrics_list
+        self.eps = eps
+        
+    
+    def accuracy(self):
+        correct_num = 0
+        for i in range(self.num_classes):
+            correct_num += self.conf_matrix[i, i]
+        acc = correct_num / self.sample_num
+        return {'ACC': round(100*acc, 2)}
+
+
+    def precision(self):
+        precision_sum = 0
+        for i in range(self.compute_class):
+            precision_sum += self.conf_matrix[i, i] / (self.conf_matrix[:, i].sum()+self.eps)
+        precision_sum /= self.compute_class
+        return {'PRC': round(100*precision_sum, 2)}
+
+
+    def recall(self):
+        recall_sum = 0
+        for i in range(self.compute_class):
+            recall_sum += self.conf_matrix[i, i] / (self.conf_matrix[i, :].sum()+self.eps)
+        recall_sum /= self.compute_class
+        return {'REC': round(100*recall_sum, 2)}
+    
+
+    def f1_score(self):
+        f1_sum = 0
+        for i in range(self.compute_class):
+            recall = self.conf_matrix[i, i] / (self.conf_matrix[i, :].sum()+self.eps)
+            precision = self.conf_matrix[i, i] / (self.conf_matrix[:, i].sum()+self.eps)
+            f1_sum += 2*precision*recall / (precision+recall)
+        f1_sum /= self.compute_class
+        return {'F1': round(100*f1_sum, 2)}
+    
+
+    def update(self, x):
+        label, label_pred = x['label'], x['label_pred']
+        conf_matrix = confusion_matrix(label, label_pred, \
+                                labels=range(self.num_classes))
+        self.conf_matrix += conf_matrix
+        self.sample_num += len(label)
+
+    
+    def compute(self):
+        metrics_dict = {}
+        for metric in self.metrics_list:
+            metrics_dict.update(eval(f'self.{metric}()'))
+        return metrics_dict
+
+
+    def reset(self):
+        self.conf_matrix = np.zeros((self.num_classes, self.num_classes))
+        self.sample_num = 0
+
+
+class LossRecorder():
+    def __init__(self, is_avg=True, loss_name='Loss') -> None:
+        self.loss_sum, self.sample_num = 0, 0
+        self.loss_name = loss_name
+        self.is_avg = is_avg
+    
+    def update(self, x):
+        loss, sample_num = x['loss'], x['sample_num']
+        total_loss = loss*sample_num if self.is_avg else loss
+        self.loss_sum += total_loss
+        self.sample_num += sample_num
+    
+    def compute(self):
+        avg_loss = self.loss_sum / self.sample_num
+        return {self.loss_name: round(avg_loss, 3)}
+
+    def reset(self):
+        self.loss_sum, self.sample_num = 0, 0
+
+
+class Grader():
+    def __init__(self, computer_list) -> None:
+        self.computer_list = computer_list
+    
+
+    def update(self, targets, outputs, loss):
+        x = {
+            'label': targets['label'].cpu().numpy(),
+            'label_pred': outputs['logit'].argmax(1).cpu().numpy(),
+            'loss': loss.cpu().numpy()
+        }
+        x['sample_num'] = len(x['label'])
+        for computer in self.computer_list:
+            computer.update(x)
+
+
+    def compute(self):
+        result = {}
+        for computer in self.computer_list:
+           result.update(computer.compute())
+        return result
+    
+    
+    def reset(self):
+        for computer in self.computer_list:
+            computer.reset()
+

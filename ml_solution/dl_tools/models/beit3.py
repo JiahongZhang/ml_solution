@@ -2,10 +2,14 @@ import torch
 import torch.nn as nn
 from transformers import XLMRobertaTokenizer
 from torchscale.model.BEiT3 import BEiT3
-import cv2
-
-from ml_solution import config
+from timm.models.layers import trunc_normal_ as __call_trunc_normal_
+from ml_solution import config, dl_tools
+from ml_solution.dl_tools import lego
 from . import beit3_utils
+
+def trunc_normal_(tensor, mean=0., std=1.):
+    __call_trunc_normal_(tensor, mean=mean, std=std, a=-std, b=std)
+
 
 src_dir = config.get('src_dir')
 beit3_src_dir = f'{src_dir}/models/beit3'
@@ -15,19 +19,14 @@ beit3_config = {
 }
 
 
-
-
-
-
 def get_tokenizer(tokenizer_path=beit3_config['tokenizer_path']):
     tokenizer = XLMRobertaTokenizer(tokenizer_path)
     return tokenizer
 
 
-
 class Beit3Basic(nn.Module):
     def __init__(self, model_scale, pretrain=False):
-        super().__init__()
+        super(Beit3Basic, self).__init__()
         self.config = eval(f'beit3_utils._get_{model_scale}_config()')
         self.beit3 = BEiT3(self.config)
         embed_dim = self.config.encoder_embed_dim
@@ -37,7 +36,11 @@ class Beit3Basic(nn.Module):
         if pretrain:
             pretrain_path = f'{beit3_src_dir}/beit3_{model_scale}_patch16_224.pth'
             self.load_state_dict(torch.load(pretrain_path)['model'])
+        else:
+            self.apply(lego.init_weights)
 
+
+    
 
 
 

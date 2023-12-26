@@ -53,3 +53,12 @@ def img_pil_loader(path: str) -> Image.Image:
 def img_permute(img, redo=False):
     img = img.transpose(1, 2, 0) if redo else img.transpose(2, 0, 1)
     return img
+
+
+def str_is_all_chinese(s):
+    for _char in s:
+        if not '\u4e00' <= _char <= '\u9fa5':
+            return False
+    return True
+
+

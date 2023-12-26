@@ -2,9 +2,12 @@ import torch
 from torch.utils.data import Dataset
 
 
-def tokenizer_concat(main_tokenizer, sub_tokenizer):
+def tokenizer_concat(main_tokenizer, sub_tokenizer, token_sifter=None):
     vocab_dict = sub_tokenizer.get_vocab()
-    ext_token_num = main_tokenizer.add_tokens(list(vocab_dict.keys()))
+    tokens = list(vocab_dict.keys())
+    if token_sifter is not None:
+        tokens = [token for token in tokens if token_sifter(token)]
+    ext_token_num = main_tokenizer.add_tokens(tokens)
     return main_tokenizer, ext_token_num
 
 
