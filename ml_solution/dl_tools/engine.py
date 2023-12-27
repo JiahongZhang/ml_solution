@@ -1,4 +1,5 @@
 import random
+import time
 import os
 from datetime import datetime
 import torch
@@ -49,7 +50,7 @@ class TorchTrainer():
         ):
         self.model = model.to(device)
         self.dataloaders = dataloaders
-        self.criterion = criterion
+        self.criterion = criterion.to(device)
         self.optimizer = optimizer
         self.device = device
 
@@ -96,23 +97,54 @@ class TrainPipeline():
         self.logger = logger
         self.call_back = call_back
         
-    
+
+    def print_batch_progress(self, batch_count, phase, time_count):
+        batch_num = len(self.trainer.dataloaders[phase])
+        time_elapsed = time.time() - time_count
+        process = 100 * batch_count / batch_num
+        log = f'{phase:<5}: {batch_count:>5}/{batch_num:<5} \
+            {time_elapsed:>3.2f}s/batch - {process:3.1f}%'
+        
+        print(log, end='\r')
+        if process >= 100:
+            print('')
+        return log
+
+
+    def print_epoch_progress(self, epoch_now, scores_dict):
+        def dict_to_log(d):
+            log_str = ''
+            for k, v in d.items():
+                log_str += f'{k:>5}: {v:<4.2f} '
+            return log_str
+        
+        print(f'Epoch {epoch_now+1:<3}')
+        for phase in ['train', 'valid']:
+            log = dict_to_log(scores_dict[phase])
+            print(f'{phase} set: {log}')
+        return log
+
+
     def train_epoches(self, epoches):
         for i in range(epoches):
-            for targets, outputs, loss in self.trainer.train():
-                self.grader.update(targets, outputs, loss)
-            train_scores = self.grader.compute()
-            self.logger.log(i, 'train', train_scores)
-            self.grader.reset()
+            scores_dict = {}
+            for phase in ['train', 'valid']:
+                batch_count = 1
+                for targets, outputs, loss in eval(f'self.trainer.{phase}()'):
+                    time_count = time.time()
+                    self.grader.update(targets, outputs, loss)
+                    self.print_batch_progress(batch_count, phase, time_count)
+                    batch_count += 1
 
-            for targets, outputs, loss in self.trainer.valid():
-                self.grader.update(targets, outputs, loss)
-            valid_scores = self.grader.compute()
-            self.logger.log(i, 'valid', valid_scores)
-            self.grader.reset()
+                scores = self.grader.compute()
+                scores_dict[phase] = scores
+                
+                self.logger.log(i, phase, scores)
+                self.grader.reset()
 
+            self.print_epoch_progress(i, scores_dict)
             if self.call_back is not None:
-                self.call_back(i, train_scores, valid_scores, self)
+                self.call_back(i, scores_dict, self)
         
         self.logger.close()
 
@@ -130,8 +162,9 @@ class CallBackSaveModel():
 
     def call_back_save_best(
             self, epoch, 
-            train_scores, valid_scores, pipeline
+            scores_dict, pipeline
         ):
+        train_scores, valid_scores = scores_dict['train'], scores_dict['valid']
         valid_metric = valid_scores[self.metric_name]
         if valid_metric>self.best_metric \
             or self.best_scores is None:

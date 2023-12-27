@@ -5,7 +5,7 @@ import wandb
 
 
 class ConfusionMetrics():
-    def __init__(self, num_classes=2, metrics_list=['accurancy'], eps=0.001):
+    def __init__(self, num_classes=2, metrics_list=['accurancy'], eps=0.0001):
         self.num_classes = num_classes
         self.compute_class = 1 if num_classes==2 else num_classes
         # conf_matrix[i, j]: true label is i, but predicted as j
@@ -44,7 +44,7 @@ class ConfusionMetrics():
         for i in range(self.compute_class):
             recall = self.conf_matrix[i, i] / (self.conf_matrix[i, :].sum()+self.eps)
             precision = self.conf_matrix[i, i] / (self.conf_matrix[:, i].sum()+self.eps)
-            f1_sum += 2*precision*recall / (precision+recall)
+            f1_sum += 2*precision*recall / (precision+recall+self.eps)
         f1_sum /= self.compute_class
         return {'F1': round(100*f1_sum, 2)}
     
@@ -123,10 +123,10 @@ class WandbLogger():
         wandb.init(config=config, name=self.version, project=project)
     
     def log(self, epoch, phase, scores):
-        record = {'step':epoch,}
+        record = {}
         for k, v in scores.items():
             record[f'{phase}_{k}'] = v
-        wandb.log(record)
+        wandb.log(record, step=epoch)
 
     def close(self):
         wandb.finish()

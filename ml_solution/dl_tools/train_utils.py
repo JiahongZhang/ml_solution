@@ -60,14 +60,14 @@ class CLIPLoss(nn.Module):
         return (loss1+loss2)/2
 
 
-class DictInputWarpper():
+class DictInputWarpper(nn.Module):
     def __init__(self, module, input_name, target_name):
         super(DictInputWarpper, self).__init__()
         self.module = module
         self.input_name = input_name
         self.target_name = target_name
 
-    def __call__(self, dict_input, dict_targets):
+    def forward(self, dict_input, dict_targets):
         inputs = dict_input[self.input_name]
         targets = dict_targets[self.target_name]
         return  self.module(inputs, targets)
