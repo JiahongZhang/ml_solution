@@ -1,6 +1,7 @@
-from typing import Any
+from datetime import datetime
 import numpy as np
 from sklearn.metrics import confusion_matrix
+import wandb
 
 
 class ConfusionMetrics():
@@ -69,7 +70,7 @@ class ConfusionMetrics():
 
 
 class LossRecorder():
-    def __init__(self, is_avg=True, loss_name='Loss') -> None:
+    def __init__(self, is_avg=True, loss_name='Loss'):
         self.loss_sum, self.sample_num = 0, 0
         self.loss_name = loss_name
         self.is_avg = is_avg
@@ -96,8 +97,8 @@ class Grader():
     def update(self, targets, outputs, loss):
         x = {
             'label': targets['label'].cpu().numpy(),
-            'label_pred': outputs['logit'].argmax(1).cpu().numpy(),
-            'loss': loss.cpu().numpy()
+            'label_pred': outputs['logit'].argmax(1).cpu().detach().numpy(),
+            'loss': loss.cpu().detach().numpy()
         }
         x['sample_num'] = len(x['label'])
         for computer in self.computer_list:
@@ -115,3 +116,17 @@ class Grader():
         for computer in self.computer_list:
             computer.reset()
 
+
+class WandbLogger():
+    def __init__(self, config, project):
+        self.version = datetime.now().strftime(f'%y%m%d%H%M%S')
+        wandb.init(config=config, name=self.version, project=project)
+    
+    def log(self, epoch, phase, scores):
+        record = {'step':epoch,}
+        for k, v in scores.items():
+            record[f'{phase}_{k}'] = v
+        wandb.log(record)
+
+    def close(self):
+        wandb.finish()

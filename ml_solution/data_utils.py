@@ -1,4 +1,5 @@
 import json
+import copy
 from PIL import Image
 import pandas as pd
 
@@ -10,6 +11,7 @@ def json_load(json_path):
 
 
 def json_manipulate_keys(item, ref_keys, keep=False):
+    item = copy.deepcopy(item)
     keys = list(item.keys())
     for key in keys:
         exclude_flag = key not in ref_keys if keep else key in ref_keys

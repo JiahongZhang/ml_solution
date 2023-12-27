@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 from transformers import XLMRobertaTokenizer
 from torchscale.model.BEiT3 import BEiT3
-from timm.models.layers import trunc_normal_ as __call_trunc_normal_
 from ml_solution import config, dl_tools
 from ml_solution.dl_tools import lego
 from . import beit3_utils
 
-def trunc_normal_(tensor, mean=0., std=1.):
-    __call_trunc_normal_(tensor, mean=mean, std=std, a=-std, b=std)
+model_card={
+    'vocab_size': 64002,
+}
 
 
 src_dir = config.get('src_dir')
