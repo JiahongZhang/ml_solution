@@ -11,7 +11,11 @@ with open('README.md', 'r') as rf:
     long_description = rf.read()
 
 required = [
-    'pandas>=2.0'
+    'pandas>=2.0',
+    'torch>=1.12',
+    'seaborn>=0.13',
+    'timm>=0.9',
+    'opencv-python>=4.8'
     ]
 
 
