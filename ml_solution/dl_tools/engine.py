@@ -118,10 +118,10 @@ class TrainPipeline():
                 log_str += f'{k:>5}: {v:<4.2f} '
             return log_str
         
-        print(f'Epoch {epoch_now+1:<3}')
         for phase in ['train', 'valid']:
             log = dict_to_log(scores_dict[phase])
             print(f'{phase} set: {log}')
+        print(f'Epoch {epoch_now+1:<3}\n')
         return log
 
 
