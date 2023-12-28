@@ -126,7 +126,7 @@ class WandbLogger():
         record = {}
         for k, v in scores.items():
             record[f'{phase}_{k}'] = v
-        wandb.log(record, step=epoch)
+        wandb.log(record, step=epoch-1)
 
     def close(self):
         wandb.finish()

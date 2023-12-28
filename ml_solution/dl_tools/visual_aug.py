@@ -5,7 +5,7 @@ import numpy as np
 from torchvision import transforms
 from timm.data.constants import IMAGENET_INCEPTION_MEAN, IMAGENET_INCEPTION_STD
 from timm.data.transforms import RandomResizedCropAndInterpolation
-
+import torchvision.transforms as T
 
 
 ## aug functions
@@ -384,3 +384,4 @@ if __name__ == '__main__':
     a = RandomAugment()
     img = np.random.randn(32, 32, 3)
     a(img)
+    

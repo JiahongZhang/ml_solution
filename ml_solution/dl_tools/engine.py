@@ -5,6 +5,7 @@ from datetime import datetime
 import torch
 import torch.nn as nn
 import numpy as np 
+from ml_solution import data_utils
 
 
 status = {
@@ -48,6 +49,11 @@ class TorchTrainer():
             optimizer,
             device=status['device'],
         ):
+        if status['gpu_count']>1:
+            model = torch.nn.DataParallel(
+                model,
+                device_ids=[i for i in range(status['gpu_count'])]
+                )
         self.model = model.to(device)
         self.dataloaders = dataloaders
         self.criterion = criterion.to(device)
@@ -90,12 +96,12 @@ class TrainPipeline():
             trainer, 
             grader,
             logger,
-            call_back=None,
+            handler=None,
         ):
         self.trainer = trainer
         self.grader = grader
         self.logger = logger
-        self.call_back = call_back
+        self.handler = handler
         
 
     def print_batch_progress(self, batch_count, phase, time_count):
@@ -121,12 +127,12 @@ class TrainPipeline():
         for phase in ['train', 'valid']:
             log = dict_to_log(scores_dict[phase])
             print(f'{phase} set: {log}')
-        print(f'Epoch {epoch_now+1:<3}\n')
+        print(f'Epoch {epoch_now:<3}\n')
         return log
 
 
     def train_epoches(self, epoches):
-        for i in range(epoches):
+        for i in range(1, epoches+1):
             scores_dict = {}
             for phase in ['train', 'valid']:
                 batch_count = 1
@@ -143,40 +149,51 @@ class TrainPipeline():
                 self.grader.reset()
 
             self.print_epoch_progress(i, scores_dict)
-            if self.call_back is not None:
-                self.call_back(i, scores_dict, self)
+            if self.handler is not None:
+                self.handler.handle(i, scores_dict, self)
         
         self.logger.close()
 
 
-class CallBackSaveModel():
-    def __init__(self, metric_name, log_root, version) -> None:
+class HandlerSaveModel():
+    def __init__(self, metric_name, log_root, version, ideal_th=None):
         self.version = version
         self.log_root = log_root
         self.metric_name = metric_name
         self.best_scores = None
+        self.ideal_scores = 'null'
         self.best_metric = 0
+        self.ideal_th = ideal_th
 
         os.makedirs(f"{self.log_root}/{version}", exist_ok=True)
         
 
-    def call_back_save_best(
+    def handle(
             self, epoch, 
             scores_dict, pipeline
         ):
         train_scores, valid_scores = scores_dict['train'], scores_dict['valid']
-        valid_metric = valid_scores[self.metric_name]
+        train_metric, valid_metric = train_scores[self.metric_name], valid_scores[self.metric_name]
+
         if valid_metric>self.best_metric \
             or self.best_scores is None:
-            self.best_score = valid_metric
+            self.best_metric = valid_metric
             self.best_scores = {
                 'epoch': epoch,
                 'train': train_scores,
                 'valid': valid_scores,
             }
             model_state = pipeline.trainer.model.state_dict()
-            torch.save(model_state, \
-                f'{self.log_root}/{self.version}/{self.version}_best.pt')
+            torch.save(model_state, f'{self.log_root}/{self.version}/{self.version}_best.pt')
+
+            if self.ideal_th is not None \
+                and (train_metric-valid_metric)<=self.ideal_th:
+                self.ideal_scores = self.best_scores
+                torch.save(model_state, f'{self.log_root}/{self.version}/{self.version}_ideal.pt')
+        
+            records = {'best': self.best_scores, 'ideal':self.ideal_scores}
+            data_utils.json_write(records, f'{self.log_root}/{self.version}/{self.version}_records.json')
+
 
 
 

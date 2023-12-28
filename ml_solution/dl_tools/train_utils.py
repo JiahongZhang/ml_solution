@@ -1,23 +1,20 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+
 class FocalLoss(nn.Module):
     def __init__(
             self, 
             gamma=2, 
             reduction='mean', 
-            weights=None, 
-            logits_name=None
+            weights=None
             ):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
         self.weights = weights
         self.reduction = reduction
-        self.logits_name = logits_name
 
     def forward(self, outputs, targets):
-        if self.logits_name is not None:
-            outputs = outputs[self.logits_name]
         if self.weights is not None:
             CE = F.cross_entropy(outputs, targets, self.weights, reduction='none')
         else:

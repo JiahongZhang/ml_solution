@@ -10,6 +10,11 @@ def json_load(json_path):
     return j
 
 
+def json_write(data, save_path):
+    with open(save_path, 'w') as f:
+        json.dump(data, f)
+
+
 def json_manipulate_keys(item, ref_keys, keep=False):
     item = copy.deepcopy(item)
     keys = list(item.keys())
