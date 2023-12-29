@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, sampler
 
 
 def tokenizer_concat(main_tokenizer, sub_tokenizer, token_sifter=None):
@@ -31,7 +31,7 @@ class JsonDataset(Dataset):
         return len(self.data)
 
 
-class TensorDictCollateFunc:
+class TensorDictCollateFunc():
     def __init__(self, sp_keys=None, sp_keys_funcs=None):
         self.sp_keys = sp_keys
         self.sp_keys_funcs = sp_keys_funcs
@@ -51,18 +51,45 @@ class TensorDictCollateFunc:
         return stacked_batch
 
 
-def torch_concat_batchs(batch):
-    if isinstance(batch[0], (list, tuple)):
-        transpose = zip(*batch)
+def torch_concat_batchs(batchs):
+    if isinstance(batchs[0], (list, tuple)):
+        transpose = zip(*batchs)
         return [torch_concat_batchs(samples) for samples in transpose]
-    
-    keys = batch[0].keys()
-    stacked_batch = {}
+    keys = batchs[0].keys()
+    concated_batchs = {}
     for key in keys:
-        tensor_list = [torch.as_tensor(item[key]) for item in batch]
-        stacked_batch[key] = torch.concat(tensor_list, axis=0)
+        tensor_list = [torch.as_tensor(item[key]) for item in batchs]
+        concated_batchs[key] = torch.concat(tensor_list, axis=0)
 
-    return stacked_batch
+    return concated_batchs
 
 
+def dataset_label_count(dataset, label_name):
+    label_list = []
+    for _, target in dataset:
+        label_list.append(target[label_name])
+    labels = torch.tensor(label_list)
+    return labels.unique(return_counts=True)
 
+
+def dataset_samples_weight_by_label(dataset, label_name):
+    labels, labels_count = dataset_label_count(dataset, label_name)
+    labels, labels_count = labels.numpy(), labels_count.numpy()
+
+    label_num_dict = {}
+    for i, label in enumerate(labels):
+        label_num_dict[label] = labels_count[i]
+
+    weights = []
+    for _, y in dataset:
+        label = int(y[label_name])
+        weights.append(1/(label_num_dict[label]*len(labels)))
+    return torch.tensor(weights)
+
+
+def dataset_label_balance_sampler(dataset, label_name, replacement=True):
+    weights = dataset_samples_weight_by_label(dataset, label_name)
+    balance_sampler = sampler.WeightedRandomSampler(weights, len(dataset), replacement=replacement)
+    return balance_sampler
+
+    
