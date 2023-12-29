@@ -44,8 +44,25 @@ class TensorDictCollateFunc:
         stacked_batch = {}
         for key in keys:
             tensor_list = [torch.as_tensor(item[key]) for item in batch]
-            stacked_batch[key] = torch.stack(tensor_list) if key not in self.sp_keys \
-                                    else self.sp_keys_funcs[key](tensor_list)
+            stacked_batch[key] = torch.stack(tensor_list) \
+                if self.sp_keys is None or key not in self.sp_keys \
+                else self.sp_keys_funcs[key](tensor_list)
 
         return stacked_batch
+
+
+def torch_concat_batchs(batch):
+    if isinstance(batch[0], (list, tuple)):
+        transpose = zip(*batch)
+        return [torch_concat_batchs(samples) for samples in transpose]
+    
+    keys = batch[0].keys()
+    stacked_batch = {}
+    for key in keys:
+        tensor_list = [torch.as_tensor(item[key]) for item in batch]
+        stacked_batch[key] = torch.concat(tensor_list, axis=0)
+
+    return stacked_batch
+
+
 

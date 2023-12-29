@@ -2,10 +2,16 @@ from datetime import datetime
 import numpy as np
 from sklearn.metrics import confusion_matrix
 import wandb
+from collections import OrderedDict
 
 
 class ConfusionMetrics():
-    def __init__(self, num_classes=2, metrics_list=['accurancy'], eps=0.0001):
+    def __init__(
+            self, 
+            num_classes=2, 
+            metrics_list=["accuracy", "f1_score", "precision", "recall"], 
+            eps=0.0001
+            ):
         self.num_classes = num_classes
         self.compute_class = 1 if num_classes==2 else num_classes
         # conf_matrix[i, j]: true label is i, but predicted as j
@@ -90,30 +96,33 @@ class LossRecorder():
 
 
 class Grader():
-    def __init__(self, computer_list) -> None:
-        self.computer_list = computer_list
+    def __init__(self, computers) -> None:
+        self.computers = computers
     
 
-    def update(self, targets, outputs, loss):
+    def update(self, **kwargs):
+        targets = kwargs.get('targets')
+        outputs = kwargs.get('outputs')
+        loss = kwargs.get('loss')
         x = {
             'label': targets['label'].cpu().numpy(),
             'label_pred': outputs['logit'].argmax(1).cpu().detach().numpy(),
-            'loss': loss.cpu().detach().numpy()
+            'loss': loss.cpu().detach().numpy() if loss is not None else None
         }
         x['sample_num'] = len(x['label'])
-        for computer in self.computer_list:
+        for computer in self.computers.values():
             computer.update(x)
 
 
     def compute(self):
         result = {}
-        for computer in self.computer_list:
+        for computer in self.computers.values():
            result.update(computer.compute())
         return result
     
     
     def reset(self):
-        for computer in self.computer_list:
+        for computer in self.computers.values():
             computer.reset()
 
 
@@ -130,3 +139,12 @@ class WandbLogger():
 
     def close(self):
         wandb.finish()
+
+
+def data_parallel_state_dict_recover(state_dict):
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        new_state_dict[k.replace("module.", "")] = v
+    return new_state_dict
+
+

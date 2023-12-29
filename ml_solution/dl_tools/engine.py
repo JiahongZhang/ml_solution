@@ -22,6 +22,14 @@ def fix_random_seed(random_seed=42):
     torch.cuda.manual_seed_all(random_seed)
 
 
+def model_state_dict(model):
+    # not save DataParallel model
+    if type(model) is torch.nn.DataParallel:
+        return model.module.state_dict()
+    else:
+        return model.state_dict()
+
+
 def move_to_device(obj, device):
     #move array/list/dict of tensor to device
     if torch.is_tensor(obj):
@@ -48,17 +56,16 @@ class TorchTrainer():
             criterion,
             optimizer,
             device=status['device'],
+            mix_pre=False
         ):
-        if status['gpu_count']>1:
-            model = torch.nn.DataParallel(
-                model,
-                device_ids=[i for i in range(status['gpu_count'])]
-                )
         self.model = model.to(device)
         self.dataloaders = dataloaders
         self.criterion = criterion.to(device)
         self.optimizer = optimizer
+
         self.device = device
+        self.mix_pre = mix_pre
+        self.scaler = torch.cuda.amp.GradScaler() if mix_pre else None
 
 
     def train(self):
@@ -67,13 +74,22 @@ class TorchTrainer():
         for inputs, targets in dataloader:
             inputs = move_to_device(inputs, self.device)
             targets = move_to_device(targets, self.device)
-            outputs = self.model(inputs)
-
             self.optimizer.zero_grad()
-            loss = self.criterion(outputs, targets)
-            loss.backward()
-            nn.utils.clip_grad_value_(self.model.parameters(), 100)
-            self.optimizer.step()
+            
+            if self.mix_pre:
+                with torch.cuda.amp.autocast():
+                    outputs = self.model(inputs)
+                    loss = self.criterion(outputs, targets)
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs, targets)
+                loss.backward()
+                nn.utils.clip_grad_value_(self.model.parameters(), 100)
+                self.optimizer.step()
+            
             yield targets, outputs, loss
 
 
@@ -136,10 +152,11 @@ class TrainPipeline():
             scores_dict = {}
             for phase in ['train', 'valid']:
                 batch_count = 1
+                time_count = time.time()
                 for targets, outputs, loss in eval(f'self.trainer.{phase}()'):
-                    time_count = time.time()
-                    self.grader.update(targets, outputs, loss)
+                    self.grader.update(targets=targets, outputs=outputs, loss=loss)
                     self.print_batch_progress(batch_count, phase, time_count)
+                    time_count = time.time()
                     batch_count += 1
 
                 scores = self.grader.compute()
@@ -183,7 +200,7 @@ class HandlerSaveModel():
                 'train': train_scores,
                 'valid': valid_scores,
             }
-            model_state = pipeline.trainer.model.state_dict()
+            model_state = model_state_dict(pipeline.trainer.model)
             torch.save(model_state, f'{self.log_root}/{self.version}/{self.version}_best.pt')
 
             if self.ideal_th is not None \
