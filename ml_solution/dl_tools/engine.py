@@ -2,6 +2,7 @@ import random
 import time
 import os
 from datetime import datetime
+import deepspeed
 import torch
 import torch.nn as nn
 import numpy as np 
@@ -46,7 +47,28 @@ def move_to_device(obj, device):
         return res
     else:
         raise TypeError("Invalid type for move_to")
-    
+
+
+def change_to_half(obj):
+    #move array/list/dict of tensor to device
+    if torch.is_tensor(obj):
+        if obj.type()=='torch.LongTensor':
+            return obj
+        else:
+            return obj.half()
+    elif isinstance(obj, dict):
+        res = {}
+        for k, v in obj.items():
+            res[k] = change_to_half(v)
+        return res
+    elif isinstance(obj, list):
+        res = []
+        for v in obj:
+            res.append(change_to_half(v))
+        return res
+    else:
+        raise TypeError("Invalid type for move_to")
+
 
 class TorchTrainer():
     def __init__(
@@ -106,12 +128,56 @@ class TorchTrainer():
                 yield targets, outputs, loss
 
 
+class DeepSpeedTrainer():
+    def __init__(self, model, ds_args, dataloaders, criterion):
+        deepspeed.init_distributed()
+        # https://deepspeed.readthedocs.io/en/latest/initialize.html
+        self.model_engine, self.optimizer, _, _ = \
+                                deepspeed.initialize(
+                                    args=ds_args,
+                                    model=model,
+                                    model_parameters=model.parameters()
+                                    )
+        self.dataloaders = dataloaders
+        self.criterion = criterion
+
+
+    def train(self):
+        dataloader = self.dataloaders['train']
+        self.model_engine.train()
+        for inputs, targets in dataloader:
+            inputs = change_to_half(inputs)
+            inputs = move_to_device(inputs, self.model_engine.device)
+            targets = move_to_device(targets, self.model_engine.device)
+            #self.optimizer.zero_grad()
+            
+            outputs = self.model_engine(inputs)
+            loss = self.criterion(outputs, targets)
+            self.model_engine.backward(loss)
+            self.model_engine.step()
+            
+            yield targets, outputs, loss
+
+
+    def valid(self):
+        dataloader = self.dataloaders['valid']
+        self.model_engine.module.eval()
+        with torch.no_grad():
+            for inputs, targets in dataloader:
+                inputs = move_to_device(inputs, self.model_engine.device)
+                targets = move_to_device(targets, self.model_engine.device)
+                
+                outputs = self.model_engine(inputs)
+                loss = self.criterion(outputs, targets)
+                yield targets, outputs, loss
+
+
 class TrainPipeline():
     def __init__(
             self, 
             trainer, 
             grader,
-            logger,
+            logger=None,
             handler=None,
         ):
         self.trainer = trainer
@@ -161,15 +227,16 @@ class TrainPipeline():
 
                 scores = self.grader.compute()
                 scores_dict[phase] = scores
-                
-                self.logger.log(i, phase, scores)
+                if self.logger is not None:
+                    self.logger.log(i, phase, scores)
                 self.grader.reset()
 
             self.print_epoch_progress(i, scores_dict)
             if self.handler is not None:
                 self.handler.handle(i, scores_dict, self)
         
-        self.logger.close()
+        if self.logger is not None and hasattr(self.logger, 'close'):
+            self.logger.close()
 
 
 class HandlerSaveModel():

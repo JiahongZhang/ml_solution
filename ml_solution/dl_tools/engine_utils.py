@@ -141,6 +141,18 @@ class WandbLogger():
         wandb.finish()
 
 
+class LocalLogger():
+    def __init__(self, config):
+        self.version = datetime.now().strftime(f'%y%m%d%H%M%S')
+        
+    
+    def log(self, epoch, phase, scores):
+        record = {}
+        for k, v in scores.items():
+            record[f'{phase}_{k}'] = v
+        
+
+
 def data_parallel_state_dict_recover(state_dict):
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
