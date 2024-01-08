@@ -1,6 +1,6 @@
 # ML Solution
 
-[pypi](https://pypi.org/project/ml-solution/) [github](https://github.com/JiahongZhang/ml_solution)
+[pypi](https://pypi.org/project/ml-solution/) [github](https://github.com/JiahongZhang/ml_solution) [modelscope](https://modelscope.cn/models/hugo42/ml_solution/summary)
 
 This package is used to quickly build a pipline for mechine learning.
 
