@@ -6,11 +6,9 @@ from . import(
     dl_tools
 )
 
+try:
+    config._init()
+except:
+    print("ml_solution config init failed!")
 
-pp_root = os.path.dirname(os.path.abspath(__file__))
-_src_dir = os.path.join(pp_root, 'src')
-os.makedirs(_src_dir, exist_ok=True)
-
-config._init()
-config.set('src_dir', _src_dir)
 

@@ -14,8 +14,13 @@ required = [
     'pandas>=2.0',
     'torch>=1.12',
     'seaborn>=0.13',
-    'timm>=0.9',
-    'opencv-python>=4.8'
+    'timm>=0.6',
+    'opencv-python>=4.8',
+    'transformers>=4.36',
+    'torchscale>=0.3',
+    'scikit-learn>=1.3',
+    'wandb>=0.16',
+    'sentencepiece>=0.1.99'
     ]
 
 

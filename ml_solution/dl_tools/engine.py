@@ -2,7 +2,7 @@ import random
 import time
 import os
 from datetime import datetime
-import deepspeed
+#import deepspeed
 import torch
 import torch.nn as nn
 import numpy as np 
@@ -128,6 +128,7 @@ class TorchTrainer():
                 yield targets, outputs, loss
 
 
+'''# deepspeed trainer developing
 class DeepSpeedTrainer():
     def __init__(self, model, ds_args, dataloaders, criterion):
         deepspeed.init_distributed()
@@ -170,7 +171,7 @@ class DeepSpeedTrainer():
                 outputs = self.model_engine(inputs)
                 loss = self.criterion(outputs, targets)
                 yield targets, outputs, loss
-
+'''
 
 class TrainPipeline():
     def __init__(
