@@ -6,3 +6,4 @@ ml_solution.egg-info/
 __pycache__
 /upload_to_pypi.sh
 /ml_solution/src
+/ml_solution/config.json
