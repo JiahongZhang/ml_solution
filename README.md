@@ -11,7 +11,7 @@ This package is used to quickly build a pipline for mechine learning.
 Easy installation with pip:
 
 ```bash
-pip intall ml_solution
+pip install ml_solution
 ```
 
 ### Code Sample
