@@ -1,7 +1,9 @@
 import urllib
 from . import data_utils
 import os 
+
 config_pwd = os.path.dirname(os.path.abspath(__file__))
+
 
 def _init():
     global config
@@ -43,14 +45,12 @@ def reset():
 def urllib_progress_bar(block_num, block_size, total_size):
     downloaded = block_num*block_size
     if downloaded < total_size:
-        print("\r", end="")
         progress_num = f'{downloaded/1024**2:<.2f}/{total_size/1024**2:<.2f} MB'
         progress_percent = 100*downloaded/total_size
         progress_line = f"|{'#'*int(progress_percent//4):<25}|"
         print(f"{progress_line} {progress_num} - {progress_percent:5<.2f}%" , end='\r')
     else:
-        print("\r", end="")
-        print('Done!')
+        print('\nDone!')
 
 
 def download_from_modelscope(file_path, save_path=None, force=False):
