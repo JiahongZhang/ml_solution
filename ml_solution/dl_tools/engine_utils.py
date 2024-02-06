@@ -95,10 +95,26 @@ class LossRecorder():
         self.loss_sum, self.sample_num = 0, 0
 
 
+class ScoreToLabel():
+    def __init__(self, num_classes, score_key='score'):
+        self.score_key = score_key
+        self.th = np.array([i/(num_classes-1) for i in range(num_classes)])
+    
+    def score_to_label(self, outputs):
+        x = outputs[self.score_key].cpu().detach().numpy()
+        dist = np.abs(x - self.th)
+        labels = np.argmin(dist, axis=1)
+        return labels
+
+
 class Grader():
     def __init__(self, computers) -> None:
         self.computers = computers
     
+
+    def get_pred(self, outputs):
+        return outputs['logit'].argmax(1).cpu().detach().numpy()
+
 
     def update(self, **kwargs):
         targets = kwargs.get('targets')
@@ -106,7 +122,7 @@ class Grader():
         loss = kwargs.get('loss')
         x = {
             'label': targets['label'].cpu().numpy(),
-            'label_pred': outputs['logit'].argmax(1).cpu().detach().numpy(),
+            'label_pred': self.get_pred(outputs),
             'loss': loss.cpu().detach().numpy() if loss is not None else None
         }
         x['sample_num'] = len(x['label'])

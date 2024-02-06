@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 
+
 class FocalLoss(nn.Module):
     def __init__(
             self, 
@@ -16,20 +17,35 @@ class FocalLoss(nn.Module):
 
     def forward(self, outputs, targets):
         if self.weights is not None:
-            CE = F.cross_entropy(outputs, targets, self.weights, reduction='none')
+            cross_entropy = F.cross_entropy(outputs, targets, self.weights, reduction='none')
         else:
-            CE = F.cross_entropy(outputs, targets, reduction='none')
+            cross_entropy = F.cross_entropy(outputs, targets, reduction='none')
         probs = outputs.softmax(1)
         ground_probs = probs[range(len(targets)), targets]
-        F_loss = (1-ground_probs)**self.gamma * CE
+        focal_loss = (1-ground_probs)**self.gamma * cross_entropy
         
-        if self.reduction == 'mean':
-            return torch.mean(F_loss)
-        elif self.reduction == 'sum':
-            return torch.sum(F_loss)
+        if self.reduction=='mean':
+            return torch.mean(focal_loss)
+        elif self.reduction=='sum':
+            return torch.sum(focal_loss)
         else:
-            return F_loss
+            return focal_loss
         
+
+class ScoreLoss(nn.Module):
+    def __init__(
+            self, k=1, b=0,
+            reduction='mean'
+            ):
+        super(ScoreLoss, self).__init__()
+        self.k, self.b = k, b
+        self.reduction = reduction
+
+    def forward(self, outputs, targets):
+        targets = (targets - self.b) / self.k
+        mse_loss = F.mse_loss(outputs.squeeze(), targets, reduction=self.reduction)
+        return mse_loss
+
 
 def softmax_CE(logits, labels):
     if len(labels.shape)==1:

@@ -16,6 +16,7 @@ class TwoLP(nn.Module):
             self, 
             in_features, 
             out_features,
+            act=nn.GELU(),
             hidden_features=None, 
             norm_layer=nn.LayerNorm, 
             norm_input=True, 
@@ -25,7 +26,7 @@ class TwoLP(nn.Module):
         self.norm1 = norm_layer(in_features) if norm_input else nn.Identity()
         self.dense1 = nn.Linear(in_features, hidden_features)
         self.norm2 = norm_layer(hidden_features)
-        self.act = nn.GELU()
+        self.act = act
         self.dense2 = nn.Linear(hidden_features, out_features)
 
     def forward(self, x):
