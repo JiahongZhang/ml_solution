@@ -2,12 +2,19 @@ import json
 import copy
 from PIL import Image
 import pandas as pd
+import random
 
 
-def json_load(json_path):
-    with open(json_path) as f:
-        j = json.load(f)
-    return j
+def json_load(json_path, line_dict=False):
+    with open(json_path, 'r') as f:
+        if not line_dict:
+            j = json.load(f)
+            return j
+        else:
+            j = []
+            for line in f:
+                j.append(json.loads(line))
+            return j
 
 
 def json_write(data, save_path):
@@ -15,14 +22,23 @@ def json_write(data, save_path):
         json.dump(data, f)
 
 
-def json_manipulate_keys(item, ref_keys, keep=False):
-    item = copy.deepcopy(item)
-    keys = list(item.keys())
+def json_manipulate_keys(d, ref_keys, keep=False):
+    d = copy.deepcopy(d)
+    keys = list(d.keys())
     for key in keys:
         exclude_flag = key not in ref_keys if keep else key in ref_keys
         if exclude_flag:
-            del item[key]
-    return item
+            del d[key]
+    return d
+
+
+def json_sample(json_root, save_root, sample_num):
+    json_file = json_load(json_root)
+    json_keys = list(json_file.keys())
+    sample_num = int(sample_num*len(json_keys)) if sample_num<=1 else sample_num
+    sample_idx = random.sample(range(len(json_keys)), sample_num)
+    json_sampled = {json_keys[idx]: json_file[json_keys[idx]] for idx in sample_idx}
+    json_write(json_sampled, save_root)
 
 
 def df_sample(

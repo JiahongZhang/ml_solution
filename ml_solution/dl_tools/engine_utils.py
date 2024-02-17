@@ -168,6 +168,30 @@ class LocalLogger():
             record[f'{phase}_{k}'] = v
         
 
+class WarmupLR():
+    def __init__(self, optimizer, lr_max=5, \
+                lr_min=0.0001, gamma=0.9, warmup_steps=10):
+        self.optimizer = optimizer
+        self.set_optim_lr(lr_min)
+        self.warmup_steps = warmup_steps
+        self.n_steps = 0
+        self.gamma = gamma
+        self.slope = (lr_max-lr_min) / warmup_steps
+        self.lr_max, self.lr_min, self.lr_now = lr_max, lr_min, lr_min
+        
+    def set_optim_lr(self, lr):
+        for param_group in self.optimizer.param_groups:
+            if 'lr' in param_group.keys():
+                param_group['lr'] = lr
+
+    def step(self):
+        self.n_steps += 1
+        if self.n_steps <= self.warmup_steps:
+            self.lr_now += self.slope
+        else:
+            self.lr_now = max(self.lr_now*self.gamma, self.lr_min)
+        self.set_optim_lr(self.lr_now)
+
 
 def data_parallel_state_dict_recover(state_dict):
     new_state_dict = OrderedDict()

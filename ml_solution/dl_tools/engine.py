@@ -77,9 +77,11 @@ class TorchTrainer():
             dataloaders,
             criterion,
             optimizer,
+            lr_scheduler=None,
             device=status['device'],
             mix_pre=False
         ):
+        self.lr_scheduler = lr_scheduler
         self.model = model.to(device)
         self.dataloaders = dataloaders
         self.criterion = criterion.to(device)
@@ -111,8 +113,11 @@ class TorchTrainer():
                 loss.backward()
                 nn.utils.clip_grad_value_(self.model.parameters(), 100)
                 self.optimizer.step()
-            
+
             yield targets, outputs, loss
+            
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.step()
 
 
     def valid(self):

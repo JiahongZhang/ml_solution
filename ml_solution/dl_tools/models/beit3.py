@@ -45,7 +45,13 @@ def get_tokenizer(
 
 
 class Beit3Basic(nn.Module):
-    def __init__(self, model_scale, pretrain=False, force_download=False):
+    def __init__(
+            self, 
+            model_scale, 
+            pretrain=False, 
+            force_download=False, 
+            layers=None
+            ):
         super(Beit3Basic, self).__init__()
         self.config = eval(f'beit3_utils._get_{model_scale}_config()')
         self.beit3 = BEiT3(self.config)
@@ -59,6 +65,14 @@ class Beit3Basic(nn.Module):
             self.load_state_dict(torch.load(f"{src_dir}/{pretrain_path}")['model'])
         else:
             self.apply(lego.init_weights)
+        if layers is not None:
+            self.beit3.encoder.layers = self.beit3.encoder.layers[:layers]
+
+
+def custom_beit3(**kwargs):
+    config = beit3_utils._get_custom_config(**kwargs)
+    custom_beit3 = BEiT3(config)
+    return custom_beit3
 
 
 
