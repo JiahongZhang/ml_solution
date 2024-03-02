@@ -1,3 +1,4 @@
+from asyncio import tasks
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -84,3 +85,21 @@ class DictInputWarpper(nn.Module):
         inputs = dict_input[self.input_name]
         targets = dict_targets[self.target_name]
         return  self.module(inputs, targets)
+
+
+class DistillLoss(nn.Module):
+    def __init__(self, distill_keys, task_loss=None, alpha=0.5, beta=0.5):
+        super(DistillLoss, self).__init__()
+        self.distill_keys = distill_keys
+        self.task_loss = task_loss
+        self.alpha, self.beta = alpha, beta
+        self.mse = nn.MSELoss()
+
+    def forward(self, outputs, targets):
+        loss = 0
+        for k in self.distill_keys:
+            loss += self.mse(outputs[k], targets[k])
+        if self.task_loss is not None:
+            loss = self.alpha*loss + self.beta*self.task_loss(outputs, targets)
+        return loss
+    

@@ -108,8 +108,9 @@ class ScoreToLabel():
 
 
 class Grader():
-    def __init__(self, computers) -> None:
+    def __init__(self, computers, label_key='label') -> None:
         self.computers = computers
+        self.label_key = label_key
     
 
     def get_pred(self, outputs):
@@ -121,9 +122,9 @@ class Grader():
         outputs = kwargs.get('outputs')
         loss = kwargs.get('loss')
         x = {
-            'label': targets['label'].cpu().numpy(),
+            'label': targets[self.label_key].cpu().numpy(),
             'label_pred': self.get_pred(outputs),
-            'loss': loss.cpu().detach().numpy() if loss is not None else None
+            'loss': loss.cpu().detach().numpy() if loss is not None else 0
         }
         x['sample_num'] = len(x['label'])
         for computer in self.computers.values():

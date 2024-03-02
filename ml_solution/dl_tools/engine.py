@@ -31,7 +31,7 @@ def model_state_dict(model):
         return model.state_dict()
 
 
-def move_to_device(obj, device):
+def move_to_device(obj, device, error_ignore=True):
     #move array/list/dict of tensor to device
     if torch.is_tensor(obj):
         return obj.to(device)
@@ -45,6 +45,8 @@ def move_to_device(obj, device):
         for v in obj:
             res.append(move_to_device(v, device))
         return res
+    elif error_ignore:
+        return obj
     else:
         raise TypeError("Invalid type for move_to")
 
@@ -79,13 +81,15 @@ class TorchTrainer():
             optimizer,
             lr_scheduler=None,
             device=status['device'],
-            mix_pre=False
+            mix_pre=False,
+            train_loss_only=False
         ):
         self.lr_scheduler = lr_scheduler
         self.model = model.to(device)
         self.dataloaders = dataloaders
         self.criterion = criterion.to(device)
         self.optimizer = optimizer
+        self.train_loss_only = train_loss_only
 
         self.device = device
         self.mix_pre = mix_pre
@@ -127,9 +131,9 @@ class TorchTrainer():
             for inputs, targets in dataloader:
                 inputs = move_to_device(inputs, self.device)
                 targets = move_to_device(targets, self.device)
-                
                 outputs = self.model(inputs)
-                loss = self.criterion(outputs, targets)
+                loss = None if self.train_loss_only \
+                    else self.criterion(outputs, targets)
                 yield targets, outputs, loss
 
 

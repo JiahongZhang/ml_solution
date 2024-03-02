@@ -12,9 +12,10 @@ def tokenizer_concat(main_tokenizer, sub_tokenizer, token_sifter=None):
 
 
 class JsonDataset(Dataset):
-    def __init__(self, json, postprocessor=None):
+    def __init__(self, json, with_idx=False, postprocessor=None):
         self.postprocessor = postprocessor
         self.data, self.indexs = [], []
+        self.with_idx = with_idx
         for index in json.keys():
             self.indexs.append(index)
             self.data.append(json[index])
@@ -22,6 +23,8 @@ class JsonDataset(Dataset):
     
     def __getitem__(self, idx):
         item = self.data[idx]
+        if self.with_idx:
+            item['idx'] = self.indexs[idx]
         if self.postprocessor is not None:
             item = self.postprocessor.postprocess(item)
         return item
@@ -43,7 +46,7 @@ class TensorDictCollateFunc():
         keys = batch[0].keys()
         stacked_batch = {}
         for key in keys:
-            tensor_list = [torch.as_tensor(item[key]) for item in batch]
+            tensor_list = [item[key] for item in batch]
             stacked_batch[key] = torch.stack(tensor_list) \
                 if self.sp_keys is None or key not in self.sp_keys \
                 else self.sp_keys_funcs[key](tensor_list)
