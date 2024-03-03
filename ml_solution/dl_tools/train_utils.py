@@ -13,7 +13,10 @@ class FocalLoss(nn.Module):
             ):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
-        self.weights = weights
+        if weights is not None:
+            self.register_buffer('weights', torch.tensor(weights))
+        else:
+            self.weights = None
         self.reduction = reduction
 
     def forward(self, outputs, targets):
