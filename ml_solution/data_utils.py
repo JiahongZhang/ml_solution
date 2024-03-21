@@ -41,6 +41,29 @@ def json_sample(json_root, save_root, sample_num):
     json_write(json_sampled, save_root)
 
 
+def json_dataset_key_map(json_dataset, ref_key, map_dict, new_key=None):
+    new_dataset = json_dataset.copy()
+    key_changed = ref_key if new_key is None else new_key
+    for k in json_dataset.keys():
+        item = new_dataset[k]
+        ref_v = item[ref_key]
+        if 'others' in map_dict.keys():
+            item[key_changed] = map_dict.get(ref_v, map_dict['others'])
+        elif ref_v in map_dict.keys():
+            item[key_changed] = map_dict[ref_v]
+        else:
+            item[key_changed] = item[ref_key]
+    return new_dataset
+
+
+def json_dataset_del(json_dataset, ref_key, del_list):
+    new_dataset = json_dataset.copy()
+    for k in json_dataset.keys():
+        if new_dataset[k][ref_key] in del_list:
+            del new_dataset[k]
+    return new_dataset
+
+
 def df_sample(
         df, sample_sig, 
         balance_on=None, 

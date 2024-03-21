@@ -80,7 +80,7 @@ class TorchTrainer():
             criterion,
             optimizer,
             lr_scheduler=None,
-            device=status['device'],
+            device=torch.device('cuda:0' if torch.cuda.is_available() else "cpu"),
             mix_pre=False,
             train_loss_only=False
         ):

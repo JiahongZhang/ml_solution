@@ -96,15 +96,24 @@ class LossRecorder():
 
 
 class ScoreToLabel():
-    def __init__(self, num_classes, score_key='score'):
+    def __init__(self, num_classes=None, score_key='score', th=None, k=1):
         self.score_key = score_key
-        self.th = np.array([i/(num_classes-1) for i in range(num_classes)])
+        if th is None:
+            self.th = np.array([i/(num_classes-1) for i in range(num_classes)])
+        else:
+            self.th = np.array(th) / k
     
     def score_to_label(self, outputs):
         x = outputs[self.score_key].cpu().detach().numpy()
         dist = np.abs(x - self.th)
         labels = np.argmin(dist, axis=1)
         return labels
+
+    def score_to_prob(self, outputs):
+        x = outputs[self.score_key].cpu().detach().numpy()
+        sub_dist = 1 / np.abs(x - self.th)
+        prob = np.exp(sub_dist) / np.sum(np.exp(sub_dist), axis=1).reshape(-1,1)
+        return prob
 
 
 class Grader():

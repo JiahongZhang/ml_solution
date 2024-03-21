@@ -35,7 +35,7 @@ def dl_predict(
 
 
 def plt_confusion_matrix(conf_matrix, title=None):
-    percent = 100*conf_matrix / conf_matrix.sum(axis=1)
+    percent = 100*conf_matrix / conf_matrix.sum(axis=1).reshape(-1,1)
     annot = []
     for i in range(conf_matrix.shape[0]):
         row = []
