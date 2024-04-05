@@ -4,6 +4,8 @@ from PIL import Image
 import pandas as pd
 import random
 
+from traitlets import default
+
 
 def json_load(json_path, line_dict=False):
     with open(json_path, 'r') as f:
@@ -32,13 +34,24 @@ def json_manipulate_keys(d, ref_keys, keep=False):
     return d
 
 
-def json_sample(json_root, save_root, sample_num):
-    json_file = json_load(json_root)
+def json_sample(json_set, sample_num):
+    json_file = json_set if type(json_set) is dict else json_load(json_set)
     json_keys = list(json_file.keys())
     sample_num = int(sample_num*len(json_keys)) if sample_num<=1 else sample_num
     sample_idx = random.sample(range(len(json_keys)), sample_num)
     json_sampled = {json_keys[idx]: json_file[json_keys[idx]] for idx in sample_idx}
-    json_write(json_sampled, save_root)
+    return json_sampled
+
+
+def json_remap(data_json, name_map_dict, remap_name='label'):
+    new_data_json = data_json.copy()
+    for k in new_data_json.keys():
+        remap_k = new_data_json[k][remap_name]
+        for name, map_dict in name_map_dict.items():
+            default_v = map_dict.get('others', -1)
+            new_data_json[k][name] = map_dict.get(remap_k, default_v)
+
+    return new_data_json
 
 
 def json_dataset_key_map(json_dataset, ref_key, map_dict, new_key=None):
@@ -69,6 +82,7 @@ def df_sample(
         balance_on=None, 
         drop_index=True
     ):
+    df = df.copy(deep=True)
     sample_num = int(len(df)*sample_sig) if sample_sig<1 else sample_sig
     if balance_on is None:
         sample1 = df.sample(sample_num)
