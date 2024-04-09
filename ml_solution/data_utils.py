@@ -4,8 +4,6 @@ from PIL import Image
 import pandas as pd
 import random
 
-from traitlets import default
-
 
 def json_load(json_path, line_dict=False):
     with open(json_path, 'r') as f:

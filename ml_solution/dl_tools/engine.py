@@ -250,7 +250,8 @@ class TrainPipeline():
 
 
 class HandlerSaveModel():
-    def __init__(self, metric_name, log_root, version, ideal_th=None):
+    def __init__(self, metric_name, log_root, version, \
+                 ideal_th=None, cond_th=None):
         self.version = version
         self.log_root = log_root
         self.metric_name = metric_name
@@ -258,6 +259,7 @@ class HandlerSaveModel():
         self.ideal_scores = 'null'
         self.best_metric = 0
         self.ideal_th = ideal_th
+        self.cond_th = cond_th
 
         os.makedirs(f"{self.log_root}/{version}", exist_ok=True)
         
@@ -284,8 +286,12 @@ class HandlerSaveModel():
                 and (train_metric-valid_metric)<=self.ideal_th:
                 self.ideal_scores = self.best_scores
                 torch.save(model_state, f'{self.log_root}/{self.version}/{self.version}_ideal.pt')
-        
-            records = {'best': self.best_scores, 'ideal':self.ideal_scores}
+
+            if self.cond_th is not None \
+                and valid_metric>self.cond_th:
+                torch.save(model_state, f'{self.log_root}/{self.version}/{self.version}_cond.pt')
+
+            records = {'best': self.best_scores, 'ideal': self.ideal_scores}
             data_utils.json_write(records, f'{self.log_root}/{self.version}/{self.version}_records.json')
 
 

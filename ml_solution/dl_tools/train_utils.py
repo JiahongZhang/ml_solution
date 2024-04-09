@@ -1,4 +1,3 @@
-from asyncio import tasks
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
@@ -47,8 +46,14 @@ class ScoreLoss(nn.Module):
 
     def forward(self, outputs, targets):
         targets = (targets - self.b) / self.k
-        mse_loss = F.mse_loss(outputs.squeeze(), targets, reduction=self.reduction)
-        return mse_loss
+        mse_loss = F.mse_loss(outputs.squeeze(), targets, reduction='none')
+        
+        if self.reduction=='none':
+            return mse_loss
+        elif self.reduction=='mean':
+            return mse_loss.mean()
+        elif self.reduction=='sum':
+            return mse_loss.sum()
 
 
 def softmax_CE(logits, labels):
@@ -58,6 +63,31 @@ def softmax_CE(logits, labels):
     selected_logits = torch.masked_select(logits, labels==1)
     loss = -torch.log(selected_logits).sum() / torch.numel(selected_logits)
     return loss
+
+
+class WeightScoreLoss(nn.Module):
+    def __init__(self, 
+                 k=1, b=0, reduction='mean', weight_name='weight', 
+                 score_name='score', pred_score_name='score'):
+        super(WeightScoreLoss, self).__init__()
+        self.score_loss = ScoreLoss(k=k, b=b, reduction='none')
+        self.reduction = reduction
+        self.weight_name = weight_name
+        self.score_name = score_name
+        self.pred_score_name = pred_score_name
+
+    def forward(self, outputs, targets):
+        weight = targets[self.weight_name]
+        score_loss = self.score_loss(
+            outputs[self.pred_score_name], targets[self.score_name])
+        weighted_mse_loss = weight * score_loss
+
+        if self.reduction=='none':
+            return weighted_mse_loss
+        elif self.reduction=='mean':
+            return weighted_mse_loss.mean()
+        elif self.reduction=='sum':
+            return weighted_mse_loss.sum()
 
 
 class CLIPLoss(nn.Module):
