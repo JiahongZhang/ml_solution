@@ -37,6 +37,30 @@ class TwoLP(nn.Module):
         return self.dense2(x)
 
 
+class FeatureExtractor(nn.Module):
+    def __init__(self, 
+                 model, # nn.module network
+                 layers_name_dict # {model.(layer): name}
+                 ):
+        super().__init__()
+        self.model = model
+        self.layers_name_dict = layers_name_dict
+        self._features = {}
+        for layer, name in layers_name_dict.items():
+            layer_str = f"self.model.{layer}"
+            op = f".register_forward_hook(self.save_outputs_hook(name))"
+            eval(layer_str+op)
+        
+    def save_outputs_hook(self, layer_out_name):
+        def fn(_, __, output):
+            self._features[layer_out_name] = output
+        return fn
+
+    def forward(self, x):
+        _ = self.model(x)
+        return self._features
+
+
 def extent_embeding(old_embed, ext_embed):
     old_vocab_length, old_embed_dim = old_embed.weight.shape
     is_embed_weight = hasattr(ext_embed, 'shape')
