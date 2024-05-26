@@ -56,15 +56,6 @@ class ScoreLoss(nn.Module):
             return mse_loss.sum()
 
 
-def softmax_CE(logits, labels):
-    if len(labels.shape)==1:
-        return F.cross_entropy(logits, labels)
-    logits = logits.softmax(1)
-    selected_logits = torch.masked_select(logits, labels==1)
-    loss = -torch.log(selected_logits).sum() / torch.numel(selected_logits)
-    return loss
-
-
 class WeightScoreLoss(nn.Module):
     def __init__(self, 
                  k=1, b=0, reduction='mean', weight_name='weight', 
@@ -90,20 +81,39 @@ class WeightScoreLoss(nn.Module):
             return weighted_mse_loss.sum()
 
 
-class CLIPLoss(nn.Module):
-    def __init__(self):
-        super(CLIPLoss, self).__init__()
-        self.t = torch.nn.Parameter(torch.tensor([0.0]))
-        self.CE_loss = softmax_CE
+class ClipLoss(nn.Module):
+    def __init__(self, t=0.0, fixed_t=False):
+        super(ClipLoss, self).__init__()
+        if not fixed_t:
+            self.register_parameter('t', nn.Parameter(torch.Tensor([t])))
+        else:
+            self.register_buffer('t', torch.Tensor([t]))
 
-    def forward(self, vectors1, vectors2, v1_labels):
+
+    def contrast_llh_1d(self, logits, labels):
+        same_label_marks = [torch.where(labels==labels[i], 1, 0) for i in range(len(labels))]
+        rel_matrix = torch.stack(same_label_marks)
+        likelyhood_loss, n = 0, len(logits)
+        for i in range(n):
+            pos_sample_logits = torch.masked_select(logits[i], rel_matrix[i]==1)
+            neg_sample_logits = torch.masked_select(logits[i], rel_matrix[i]==0)
+
+            pos_exp = pos_sample_logits.exp()
+            neg_exp_sum = neg_sample_logits.exp().sum()
+            likelyhood_loss += ((pos_exp+neg_exp_sum+0.001).log() - pos_sample_logits).sum()
+        return likelyhood_loss/n
+
+
+    def forward(self, vectors1, vectors2, v1_labels=None):
         # row vector matrix
-        vectors1 = torch.nn.functional.normalize(vectors1)
-        vectors2 = torch.nn.functional.normalize(vectors2)
-        logits = torch.matmul(vectors1, vectors2.T) * torch.exp(self.t)
-        loss1 = self.CE_loss(logits, v1_labels)
-        loss2 = self.CE_loss(logits.T, v1_labels.T)
+        vectors1 = vectors1 / vectors1.norm(p=2, dim=-1, keepdim=True)
+        vectors2 = vectors2 / vectors2.norm(p=2, dim=-1, keepdim=True)
+        logits = torch.matmul(vectors1, vectors2.mT) * torch.exp(self.t)
 
+        labels = torch.tensor(range(len(logits))).to(vectors1.device) if v1_labels is None else v1_labels
+        loss1 = self.contrast_llh_1d(logits, labels)
+        loss2 = self.contrast_llh_1d(logits.T, labels) if v1_labels is not None else 0
+       
         return (loss1+loss2)/2
 
 

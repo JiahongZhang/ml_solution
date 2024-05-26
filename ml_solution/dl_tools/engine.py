@@ -38,12 +38,12 @@ def move_to_device(obj, device, error_ignore=True):
     elif isinstance(obj, dict):
         res = {}
         for k, v in obj.items():
-            res[k] = move_to_device(v, device)
+            res[k] = move_to_device(v, device, error_ignore)
         return res
     elif isinstance(obj, list):
         res = []
         for v in obj:
-            res.append(move_to_device(v, device))
+            res.append(move_to_device(v, device, error_ignore))
         return res
     elif error_ignore:
         return obj
@@ -256,7 +256,7 @@ class HandlerSaveModel():
         self.log_root = log_root
         self.metric_name = metric_name
         self.best_scores = None
-        self.ideal_scores = 'null'
+        self.ideal_scores = None
         self.best_metric = 0
         self.ideal_th = ideal_th
         self.cond_th = cond_th
@@ -264,35 +264,31 @@ class HandlerSaveModel():
         os.makedirs(f"{self.log_root}/{version}", exist_ok=True)
         
 
-    def handle(
-            self, epoch, 
-            scores_dict, pipeline
-        ):
+    def handle(self, epoch, scores_dict, pipeline):
         train_scores, valid_scores = scores_dict['train'], scores_dict['valid']
         train_metric, valid_metric = train_scores[self.metric_name], valid_scores[self.metric_name]
+        
+        metric_now = {'epoch': epoch, 'train': train_scores, 'valid': valid_scores}
+        model_state = model_state_dict(pipeline.trainer.model)
 
         if valid_metric>self.best_metric \
             or self.best_scores is None:
             self.best_metric = valid_metric
-            self.best_scores = {
-                'epoch': epoch,
-                'train': train_scores,
-                'valid': valid_scores,
-            }
-            model_state = model_state_dict(pipeline.trainer.model)
+            self.best_scores = metric_now
             torch.save(model_state, f'{self.log_root}/{self.version}/{self.version}_best.pt')
 
             if self.ideal_th is not None \
                 and (train_metric-valid_metric)<=self.ideal_th:
                 self.ideal_scores = self.best_scores
                 torch.save(model_state, f'{self.log_root}/{self.version}/{self.version}_ideal.pt')
+        records = {'best': self.best_scores, 'ideal': self.ideal_scores}
 
-            if self.cond_th is not None \
-                and valid_metric>self.cond_th:
-                torch.save(model_state, f'{self.log_root}/{self.version}/{self.version}_cond.pt')
-
-            records = {'best': self.best_scores, 'ideal': self.ideal_scores}
-            data_utils.json_write(records, f'{self.log_root}/{self.version}/{self.version}_records.json')
+        if self.cond_th is not None \
+            and valid_metric>=self.cond_th:
+            records['cond'] = metric_now
+            torch.save(model_state, f'{self.log_root}/{self.version}/{self.version}_cond.pt')
+        
+        data_utils.json_write(records, f'{self.log_root}/{self.version}/{self.version}_records.json')
 
 
 
